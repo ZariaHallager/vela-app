@@ -18,7 +18,7 @@ export default function InsightStep({ onNext }: InsightStepProps) {
   const [ctaHovered, setCtaHovered] = useState(false);
   const didFetch = useRef(false);
 
-  const phase = useSessionStore((s) => s.phase);
+  const phases = useSessionStore((s) => s.phases);
 
   useEffect(() => {
     if (didFetch.current) return;
@@ -35,7 +35,7 @@ export default function InsightStep({ onNext }: InsightStepProps) {
           body: JSON.stringify({
             messages: conversationHistory,
             step: 'insight',
-            phase: useSessionStore.getState().phase,
+            phases: useSessionStore.getState().phases,
             sessionTurn: turnCount,
           }),
         });
@@ -112,11 +112,11 @@ export default function InsightStep({ onNext }: InsightStepProps) {
           <h2 className="font-serif text-2xl md:text-3xl text-mauve leading-snug">
             Here&apos;s what your body may be telling you
           </h2>
-          {phase && (
+          {phases.length > 0 && (
             <p className="text-sm text-mauve/50 mt-1 capitalize">
               Calibrated for{' '}
               <span className="text-lavender font-medium">
-                {phaseLabel(phase)}
+                {phases.map(phaseLabel).join(', ')}
               </span>
             </p>
           )}
