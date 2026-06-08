@@ -39,7 +39,6 @@ export type Step =
   | 'conditionContext'
   | 'followup'
   | 'pdf'
-  | 'email'
   | 'destroyed';
 
 export interface SessionData {
@@ -55,11 +54,6 @@ export interface SessionData {
 
 export interface PDFRequestBody {
   session: SessionData;
-}
-
-export interface EmailRequestBody {
-  email: string;
-  pdfBase64: string;
 }
 
 export interface ChatRequestBody {

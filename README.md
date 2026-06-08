@@ -2,7 +2,7 @@
 
 **Your symptoms, documented. Your story, told.**
 
-Vela is a private, AI-powered health companion that helps women articulate their symptoms and walk into a doctor's appointment prepared. It guides you through a short conversation, then generates a clinical-grade pre-visit brief you can download as a PDF or have emailed to yourself.
+Vela is a private, AI-powered health companion that helps women articulate their symptoms and walk into a doctor's appointment prepared. It guides you through a short conversation, then generates a clinical-grade pre-visit brief you can download as a PDF.
 
 ---
 
@@ -37,7 +37,7 @@ Vela walks you through six steps:
 | Life Phase | You select your current hormonal life phase (perimenopause, postmenopause, etc.) |
 | Insight | The AI surfaces a structured clinical pattern based on what you shared |
 | Follow-up | Three to five deep follow-up questions asked one at a time |
-| PDF Brief | A clinical pre-visit document is generated and optionally emailed to you |
+| PDF Brief | A clinical pre-visit document is generated and downloaded as a PDF |
 
 ---
 
@@ -50,7 +50,6 @@ Vela walks you through six steps:
 | Streaming | OpenAI-compatible SSE |
 | State | [Zustand](https://zustand-demo.pmnd.rs) (in-memory only, no persistence) |
 | PDF | [pdfmake](https://pdfmake.github.io/docs/) (server-side generation) |
-| Email | [Resend](https://resend.com) |
 | Animation | [Framer Motion](https://www.framer.com/motion/) |
 | Styling | [Tailwind CSS](https://tailwindcss.com) |
 
@@ -85,7 +84,6 @@ Open `.env.local` and fill in the values below.
 | `AI_MODEL_ID` | Yes | Model identifier passed to the chosen provider (e.g. `gemini-2.5-flash-lite`). |
 | `KIMI_BASE_URL` | When using DeepInfra | Base URL for the DeepInfra OpenAI-compatible endpoint. |
 | `DEEPINFRA_API_KEY` | When using DeepInfra | API key for DeepInfra. Get one at [deepinfra.com/dash/api_keys](https://deepinfra.com/dash/api_keys). |
-| `RESEND_API_KEY` | Yes | Resend API key for emailing the PDF. Get one at [resend.com/api-keys](https://resend.com/api-keys). |
 | `RATE_LIMIT_ENABLED` | Yes | Set to `false` for local development. Set to `true` in production to enforce 50 requests per IP per 24 hours. |
 
 ### 3. Run the development server
@@ -111,9 +109,7 @@ There is no database. Conversation data lives only in your browser's JavaScript 
 
 The server logs only rate-limit violations (IP address and count). No symptom content, no personal information.
 
-When the session ends, whether by sending the PDF, skipping email, or closing the tab, the Zustand store is destroyed and the data is gone.
-
-The PDF is sent as a base64 attachment via Resend and is not retained by Vela at any point after delivery.
+When the session ends — whether by downloading the PDF or closing the tab — the Zustand store is destroyed and the data is gone.
 
 ---
 

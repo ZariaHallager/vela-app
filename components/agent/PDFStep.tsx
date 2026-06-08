@@ -68,15 +68,11 @@ function CheckIcon({ className }: { className?: string }) {
 export default function PDFStep({ onComplete }: PDFStepProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pdfGenerated, setPdfGenerated] = useState(false);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const store = useSessionStore();
 
-  const generatePdf = async (): Promise<string> => {
+  const generatePdf = async (): Promise<void> => {
     const resp = await fetch('/api/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -99,14 +95,6 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
     }
 
     const buffer = await resp.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64 = btoa(binary);
-    setPdfBase64(base64);
-
     const blob = new Blob([buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -116,44 +104,9 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
     URL.revokeObjectURL(url);
 
     setPdfGenerated(true);
-    return base64;
-  };
-
-  const sendEmail = async (base64: string) => {
-    const resp = await fetch('/api/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, pdfBase64: base64 }),
-    });
-
-    if (!resp.ok) {
-      const json = await resp.json();
-      throw new Error(json.error ?? 'Failed to send email. Please try again.');
-    }
-
-    setEmailSent(true);
   };
 
   const handlePrimary = async () => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    setError(null);
-
-    try {
-      const base64 = await generatePdf();
-      if (email) {
-        setIsSendingEmail(true);
-        await sendEmail(base64);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setIsGenerating(false);
-      setIsSendingEmail(false);
-    }
-  };
-
-  const handleDownloadOnly = async () => {
     if (isGenerating) return;
     setIsGenerating(true);
     setError(null);
@@ -167,33 +120,12 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
     }
   };
 
-  const handleSendAfterDownload = async () => {
-    if (!email || !pdfBase64 || isSendingEmail) return;
-    setIsSendingEmail(true);
-    setError(null);
-
-    try {
-      await sendEmail(pdfBase64);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
   const handleFinish = () => {
     store.destroy();
     onComplete();
   };
 
-  const primaryDone = pdfGenerated && (!email || emailSent);
-  const primaryDisabled = isGenerating || primaryDone;
-
-  const primaryLabel = (() => {
-    if (isGenerating) return isSendingEmail ? 'Sending…' : 'Generating…';
-    if (pdfGenerated) return email && emailSent ? 'Downloaded & sent' : 'Downloaded';
-    return email ? 'Generate & send' : 'Generate & download';
-  })();
+  const primaryLabel = isGenerating ? 'Generating…' : pdfGenerated ? 'Downloaded' : 'Generate & download';
 
   return (
     <motion.div
@@ -265,67 +197,6 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
           </ul>
         </motion.div>
 
-        {/* Email input — always visible */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.32 }}
-          className="mb-5"
-        >
-          <label
-            htmlFor="pdf-email-input"
-            className="flex items-baseline gap-2 mb-2"
-          >
-            <span className="text-xs font-semibold uppercase tracking-widest text-mauve/50">
-              Send to email
-            </span>
-            <span className="text-xs text-mauve/35">optional</span>
-          </label>
-
-          {emailSent ? (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-lavender/10 border border-lavender/25 text-sm text-mauve/70"
-            >
-              <CheckIcon className="w-4 h-4 text-lavender shrink-0" />
-              Sent to {email}
-            </motion.div>
-          ) : (
-            <div className="flex gap-2">
-              <input
-                id="pdf-email-input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && pdfGenerated) handleSendAfterDownload();
-                }}
-                placeholder="you@example.com"
-                disabled={isGenerating}
-                className="flex-1 rounded-xl px-4 py-3 text-mauve placeholder-mauve/30 bg-champagne/60 border border-blush/60 focus:outline-none focus:ring-2 focus:ring-lavender/60 focus:border-transparent text-sm transition-all duration-200 disabled:opacity-50"
-              />
-              {pdfGenerated && email && (
-                <motion.button
-                  type="button"
-                  onClick={handleSendAfterDownload}
-                  disabled={isSendingEmail}
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  whileHover={{ scale: isSendingEmail ? 1 : 1.02 }}
-                  whileTap={{ scale: isSendingEmail ? 1 : 0.97 }}
-                  className={`px-5 py-3 rounded-xl font-semibold text-sm whitespace-nowrap transition-all duration-200 ${!isSendingEmail
-                    ? 'bg-mauve text-champagne hover:bg-mauve/85'
-                    : 'bg-blush/40 text-mauve/30 cursor-not-allowed'
-                    }`}
-                >
-                  {isSendingEmail ? '…' : 'Send'}
-                </motion.button>
-              )}
-            </div>
-          )}
-        </motion.div>
-
         {/* Error */}
         <AnimatePresence>
           {error && (
@@ -350,13 +221,13 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
           <motion.button
             type="button"
             onClick={handlePrimary}
-            disabled={primaryDisabled}
-            whileHover={{ scale: primaryDisabled ? 1 : 1.02 }}
-            whileTap={{ scale: primaryDisabled ? 1 : 0.97 }}
+            disabled={isGenerating || pdfGenerated}
+            whileHover={{ scale: isGenerating || pdfGenerated ? 1 : 1.02 }}
+            whileTap={{ scale: isGenerating || pdfGenerated ? 1 : 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             className={`w-full py-4 rounded-xl font-semibold text-base tracking-wide flex items-center justify-center gap-2 transition-all duration-200 ${isGenerating
               ? 'bg-blush/40 text-mauve/30 cursor-not-allowed'
-              : primaryDone
+              : pdfGenerated
                 ? 'bg-lavender/12 text-lavender border border-lavender/35'
                 : 'bg-lavender text-white shadow-lg shadow-lavender/30 hover:bg-lavender/90'
               }`}
@@ -373,7 +244,7 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
                 </motion.span>
                 {primaryLabel}
               </>
-            ) : primaryDone ? (
+            ) : pdfGenerated ? (
               <>
                 <CheckIcon className="w-4 h-4 shrink-0" />
                 {primaryLabel}
@@ -383,28 +254,6 @@ export default function PDFStep({ onComplete }: PDFStepProps) {
             )}
           </motion.button>
         </motion.div>
-
-        {/* Download only — secondary link, shown when email is provided */}
-        <AnimatePresence>
-          {!pdfGenerated && email && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden text-center mb-2"
-            >
-              <button
-                type="button"
-                onClick={handleDownloadOnly}
-                disabled={isGenerating}
-                className="text-sm text-mauve/40 hover:text-mauve/65 underline underline-offset-2 transition-colors duration-150 disabled:cursor-not-allowed py-1"
-              >
-                Download only
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Finish */}
         <motion.div
