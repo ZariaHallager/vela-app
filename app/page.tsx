@@ -1,101 +1,143 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import AnimatedBackground from '@/components/ui/AnimatedBackground';
+import ProgressDots from '@/components/ui/ProgressDots';
+import OpeningStep from '@/components/agent/OpeningStep';
+import ReflectionStep from '@/components/agent/ReflectionStep';
+import PhaseStep from '@/components/agent/PhaseStep';
+import InsightStep from '@/components/agent/InsightStep';
+import ConditionContextStep from '@/components/agent/ConditionContextStep';
+import FollowUpStep from '@/components/agent/FollowUpStep';
+import PDFStep from '@/components/agent/PDFStep';
+import { useSessionStore } from '@/lib/entitydb';
+import type { LifePhase, Step } from '@/lib/types';
+
+export default function AgentShell() {
+  const [step, setStep] = useState<Step>('opening');
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+
+  const store = useSessionStore();
+
+  if (step === 'destroyed') {
+    return (
+      <>
+        <AnimatedBackground />
+        <ThankYou onRestart={() => setStep('opening')} />
+      </>
+    );
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <>
+      <AnimatedBackground />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <main className="flex flex-col items-center justify-center min-h-screen px-4 py-10">
+        <div className="w-full max-w-2xl">
+          {/* Progress dots */}
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex justify-center mb-8"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <ProgressDots currentStep={step} />
+          </motion.div>
+
+          {/* Step panels */}
+          <AnimatePresence mode="wait">
+            {step === 'opening' && (
+              <OpeningStep
+                key="opening"
+                onNext={(text, chips) => {
+                  store.setOpeningText(text);
+                  store.setSymptomChips(chips);
+                  store.addMessage({ role: 'user', content: text });
+                  setStep('reflection');
+                }}
+              />
+            )}
+
+            {step === 'reflection' && (
+              <ReflectionStep
+                key="reflection"
+                onNext={() => setStep('phase')}
+              />
+            )}
+
+            {step === 'phase' && (
+              <PhaseStep
+                key="phase"
+                onNext={(phases: LifePhase[], questions: string[]) => {
+                  store.setPhases(phases);
+                  setFollowUpQuestions(questions);
+                  setStep('insight');
+                }}
+              />
+            )}
+
+            {step === 'insight' && (
+              <InsightStep
+                key="insight"
+                onNext={() => setStep('conditionContext')}
+              />
+            )}
+
+            {step === 'conditionContext' && (
+              <ConditionContextStep
+                key="conditionContext"
+                onNext={() => setStep('followup')}
+              />
+            )}
+
+            {step === 'followup' && (
+              <FollowUpStep
+                key="followup"
+                questions={followUpQuestions}
+                onNext={() => setStep('pdf')}
+              />
+            )}
+
+            {step === 'pdf' && (
+              <PDFStep
+                key="pdf"
+                onComplete={() => setStep('destroyed')}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+    </>
+  );
+}
+
+function ThankYou({ onRestart }: { onRestart: () => void }) {
+  return (
+    <main className="flex flex-col items-center justify-center min-h-screen px-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+        className="text-center max-w-sm"
+      >
+        <div className="text-5xl mb-5" aria-hidden="true">
+          🌸
+        </div>
+        <h1 className="font-serif text-3xl text-mauve mb-3">
+          Take good care of yourself
+        </h1>
+        <p className="text-mauve/60 text-base leading-relaxed mb-8">
+          Your session has been cleared. No data has been stored. We hope your clinical brief helps you have a more productive conversation with your provider.
+        </p>
+        <button
+          type="button"
+          onClick={onRestart}
+          className="text-sm text-mauve/50 hover:text-lavender underline underline-offset-2 transition-colors duration-150"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          Start a new session
+        </button>
+      </motion.div>
+    </main>
   );
 }
